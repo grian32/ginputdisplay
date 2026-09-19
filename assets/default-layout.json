@@ -1,0 +1,13 @@
+{
+  "width": 320,
+  "height": 240,
+  "boxes": [
+    { "x": 70, "y": 40, "width": 30, "height": 30, "label": "W", "key": "KEY_W" },
+    { "x": 40, "y": 70, "width": 30, "height": 30, "label": "A", "key": "KEY_A" },
+    { "x": 70, "y": 70, "width": 30, "height": 30, "label": "S", "key": "KEY_S" },
+    { "x": 100, "y": 70, "width": 30, "height": 30, "label": "D", "key": "KEY_D" },
+    { "x": 100, "y": 40, "width": 90, "height": 30, "label": "GRAB", "key": "KEY_LEFTSHIFT" },
+    { "x": 130, "y": 70, "width": 50, "height": 30, "label": "DASH", "key": "KEY_KP2" },
+    { "x": 180, "y": 70, "width": 50, "height": 30, "label": "JUMP", "key": "KEY_KP3" }
+  ]
+}
