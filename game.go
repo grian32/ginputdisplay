@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"image/color"
 	"log"
 	"sync"
@@ -39,13 +38,17 @@ func init() {
 }
 
 type Game struct {
-	mu     sync.RWMutex
-	keys   map[evdev.EvCode]bool
-	dev    *evdev.Device
-	layout DisplayLayout
-	ui     *ebitenbackend.EbitenBackend
-	showUI bool
-	clicks int
+	mu                 sync.RWMutex
+	keys               map[evdev.EvCode]bool
+	dev                *evdev.Device
+	layout             DisplayLayout
+	ui                 *ebitenbackend.EbitenBackend
+	showUI             bool
+	currSelectedButton int
+	layoutPath         string
+	lastLayoutPath     string
+	editorStatus       string
+	layoutDialog       chan layoutDialogResult
 }
 
 func (g *Game) Setup() {
@@ -58,9 +61,10 @@ func (g *Game) Setup() {
 	}
 	g.dev = dev
 	g.ui = ebitenbackend.NewEbitenBackend()
-	g.ui.CreateWindow("ginputdisplay", 640, 480)
+	g.ui.CreateWindow("ginputdisplay", 800, 800)
 	imgui.CurrentIO().SetIniFilename("")
 	g.showUI = true
+	g.currSelectedButton = -1
 }
 
 func (g *Game) Destroy() {
@@ -68,23 +72,27 @@ func (g *Game) Destroy() {
 }
 
 func (g *Game) Update() error {
+	g.finishLayoutDialog()
 	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
 		g.showUI = !g.showUI
 	}
-	g.ui.BeginFrame()
-	if g.showUI {
-		imgui.SetNextWindowPosV(imgui.NewVec2(20, 120), imgui.CondOnce, imgui.NewVec2(0, 0))
-		imgui.SetNextWindowSizeV(imgui.NewVec2(280, 100), imgui.CondOnce)
-		if imgui.Begin("ImGui") {
-			imgui.Text("F1: show/hide this window")
-			if imgui.Button("Click me") {
-				g.clicks++
-			}
-			imgui.SameLine()
-			imgui.Text(fmt.Sprintf("Clicks: %d", g.clicks))
-		}
-		imgui.End()
+	if !g.showUI {
+		return nil
 	}
+
+	g.ui.BeginFrame()
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButton0) && !imgui.CurrentIO().WantCaptureMouse() {
+		x, y := ebiten.CursorPosition()
+		for i := len(g.layout.Boxes) - 1; i >= 0; i-- {
+			b := g.layout.Boxes[i]
+			if x >= b.X && x <= b.X+b.Width && y >= b.Y && y <= b.Y+b.Height {
+				g.currSelectedButton = i
+				break
+			}
+		}
+	}
+
+	g.drawEditor()
 	g.ui.EndFrame()
 	return nil
 }
@@ -95,7 +103,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawBox(screen, box, g.keys[box.code])
 	}
 	g.mu.RUnlock()
-	g.ui.Draw(screen)
+	if g.showUI {
+		g.ui.Draw(screen)
+	}
 }
 
 func (g *Game) readKeyboard() {
@@ -158,5 +168,5 @@ func (g *Game) drawBox(screen *ebiten.Image, box Box, fill bool) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return g.ui.Layout(g.layout.Width, g.layout.Height)
+	return g.ui.Layout(max(g.layout.Width, 400), max(g.layout.Height, 400))
 }

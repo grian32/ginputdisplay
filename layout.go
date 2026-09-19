@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mikegio27/go-evdev"
@@ -14,6 +15,45 @@ import (
 
 //go:embed assets/default-layout.json
 var defaultLayout []byte
+
+func lastLayoutPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("find config directory: %w", err)
+	}
+	return filepath.Join(dir, "ginputdisplay", "last-layout.json"), nil
+}
+
+func saveLayout(path string, layout DisplayLayout) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("enter a layout file path")
+	}
+	data, err := json.MarshalIndent(layout, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode layout: %w", err)
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create layout directory: %w", err)
+	}
+	file, err := os.CreateTemp(dir, ".layout-*.json")
+	if err != nil {
+		return fmt.Errorf("save layout %q: %w", path, err)
+	}
+	defer os.Remove(file.Name())
+	_, writeErr := file.Write(append(data, '\n'))
+	closeErr := file.Close()
+	if writeErr != nil {
+		return fmt.Errorf("write layout %q: %w", path, writeErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close layout %q: %w", path, closeErr)
+	}
+	if err := os.Rename(file.Name(), path); err != nil {
+		return fmt.Errorf("save layout %q: %w", path, err)
+	}
+	return nil
+}
 
 type DisplayLayout struct {
 	Width  int   `json:"width"`
